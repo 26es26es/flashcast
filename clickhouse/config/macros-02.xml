@@ -1,0 +1,7 @@
+<clickhouse>
+    <macros replace="true">
+        <cluster>flashcast_cluster</cluster>
+        <shard>02</shard>
+        <replica>clickhouse-02</replica>
+    </macros>
+</clickhouse>

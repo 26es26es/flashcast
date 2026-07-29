@@ -1,0 +1,25 @@
+[package]
+name = "hello_wsl"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+axum = { version = "0.8", features = ["macros", "ws"] }
+tokio = { version = "1.0", features = ["full"] }
+sqlx = { version = "0.8", features = ["runtime-tokio-rustls", "postgres", "macros", "chrono", "bigdecimal"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+chrono = { version = "0.4", features = ["serde"] }
+jsonwebtoken = "9.3"
+argon2 = "0.5"
+tower-http = { version = "0.6", features = ["cors", "trace"] }
+tracing = "0.1"
+tracing-subscriber = "0.3"
+redis = { version = "0.27", features = ["tokio-comp", "aio"] }
+rdkafka = { version = "0.36", features = ["tokio"] }
+reqwest = {
+version = "0.12", features = ["json"] 
+}
+metrics = "0.24"
+metrics-exporter-prometheus = "0.16"
+bcrypt = "0.19.2"

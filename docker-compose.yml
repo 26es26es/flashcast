@@ -1,0 +1,117 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: flashcast_db
+    environment:
+      POSTGRES_USER: flashcast_admin
+      POSTGRES_PASSWORD: supersecretpassword
+      POSTGRES_DB: flashcast
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    container_name: flashcast_cache
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: flashcast_zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    volumes:
+      - zk_data:/var/lib/zookeeper/data
+      - zk_log:/var/lib/zookeeper/log
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: flashcast_broker
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://127.0.0.1:9092,PLAINTEXT_INTERNAL://kafka:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT_INTERNAL
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+
+  # --- Analytics cluster (spec 2.4): 2 shards + Keeper coordination -----------
+  clickhouse-keeper:
+    image: clickhouse/clickhouse-keeper:23.8-alpine
+    container_name: flashcast_keeper
+    volumes:
+      - ./clickhouse/keeper/keeper.xml:/etc/clickhouse-keeper/keeper_config.xml:ro
+      - keeper_data:/var/lib/clickhouse-keeper
+    ports:
+      - "9181:9181"
+
+  clickhouse-01:
+    image: clickhouse/clickhouse-server:23.8-alpine
+    container_name: flashcast_analytics
+    hostname: clickhouse-01
+    depends_on:
+      - clickhouse-keeper
+    volumes:
+      - ./clickhouse/config/cluster.xml:/etc/clickhouse-server/config.d/cluster.xml:ro
+      - ./clickhouse/config/macros-01.xml:/etc/clickhouse-server/config.d/macros.xml:ro
+      - ./clickhouse/init:/docker-entrypoint-initdb.d:ro
+      - ch01_data:/var/lib/clickhouse
+    ports:
+      - "8123:8123"
+      - "9000:9000"
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+
+  clickhouse-02:
+    image: clickhouse/clickhouse-server:23.8-alpine
+    container_name: flashcast_analytics_02
+    hostname: clickhouse-02
+    depends_on:
+      - clickhouse-keeper
+    volumes:
+      - ./clickhouse/config/cluster.xml:/etc/clickhouse-server/config.d/cluster.xml:ro
+      - ./clickhouse/config/macros-02.xml:/etc/clickhouse-server/config.d/macros.xml:ro
+      - ./clickhouse/init:/docker-entrypoint-initdb.d:ro
+      - ch02_data:/var/lib/clickhouse
+    ports:
+      - "8124:8123"
+      - "9001:9000"
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+  prometheus:
+    image: prom/prometheus:v2.45.0
+    container_name: flashcast_prometheus
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+
+  grafana:
+    image: grafana/grafana:10.0.0
+    container_name: flashcast_grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+volumes:
+  pgdata:
+  keeper_data:
+  ch01_data:
+  ch02_data:
+  kafka_data:
+  zk_data:
+  zk_log:

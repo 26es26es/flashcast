@@ -1,0 +1,41 @@
+<clickhouse>
+    <!--
+        Two-node FlashCast analytics cluster (spec 2.4).
+
+        Each node holds a local ReplicatedMergeTree table; a Distributed table on
+        top of them shards writes and fans aggregation queries out to both.
+        ClickHouse Keeper handles replication coordination.
+    -->
+    <remote_servers replace="true">
+        <flashcast_cluster>
+            <shard>
+                <internal_replication>true</internal_replication>
+                <replica>
+                    <host>clickhouse-01</host>
+                    <port>9000</port>
+                </replica>
+            </shard>
+            <shard>
+                <internal_replication>true</internal_replication>
+                <replica>
+                    <host>clickhouse-02</host>
+                    <port>9000</port>
+                </replica>
+            </shard>
+        </flashcast_cluster>
+    </remote_servers>
+
+    <zookeeper replace="true">
+        <node>
+            <host>clickhouse-keeper</host>
+            <port>9181</port>
+        </node>
+    </zookeeper>
+
+    <!-- Substituted into ReplicatedMergeTree paths; overridden per node. -->
+    <macros replace="true">
+        <cluster>flashcast_cluster</cluster>
+    </macros>
+
+    <listen_host>0.0.0.0</listen_host>
+</clickhouse>
